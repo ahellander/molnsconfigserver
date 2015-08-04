@@ -1,0 +1,49 @@
+<html>
+    <head>
+        <script type="text/javascript" src="/js/jquery.js"></script>
+        <script type="text/javascript" src="/js/underscore.js"></script>
+        <script type="text/javascript" src="/js/backbone.js"></script>
+        <script type="text/javascript" src="/js/main.js"></script>
+    </head>
+    <body>
+        <!--
+            Initial JSON to fill page will appear in this Div
+          -->
+        <div style="display: none;" class="jsonData">
+            {{ json }}
+        </div>
+
+        <div class="loading">
+            Loading cluster configuration tool...
+        </div>
+
+        <div style="display: none;" class="content">
+            <div>
+                <h3>EC2 Configuration</h3>
+            </div>
+            <div>
+                AWS Access Key: <input type="text" name="aws_access_key">
+            </div>
+            <div>
+                AWS Secret Key: <input type="text" name="aws_secret_key">
+            </div>
+            <div>
+                Head node instance type:
+                <select class="headNode">
+                    <option value="c3.large">c3.large</option>
+                    <option value="m3.medium">m3.medium</option>
+                </select>
+            </div>
+            Worker nodes:
+            <div data-hook="workerNodes">
+            </div>
+            <div>
+                <button class="startCluster">Start</button>
+                <button class="stopCluster">Stop</button>
+            </div>
+            <hr>
+            <div class="messages">
+            </div>
+        </div>
+    </body>
+</html>
