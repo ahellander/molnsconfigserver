@@ -62,7 +62,8 @@ $( function() {
                     {
                         aws_access_key : $( 'input[name=aws_access_key]' ).val(),
                         aws_secret_key : $( 'input[name=aws_secret_key]' ).val(),
-                        head_node : $( '.headNode' ).val()
+                        head_node : $( '.headNode' ).val(),
+                        pw : $( 'input[name=password]' ).val()
                     },
                     _.bind(function(data) {
                         this.createMessage(data);
@@ -90,7 +91,12 @@ $( function() {
             if(typeof data != "undefined")
                 this.handleMessage(data);
 
-            $( '.messages' ).append( '<div style="display: none;" class="line"><span class="time">' + dateString + '</span>: <pre style="display : inline;" class="content"></pre></div>' );
+            var messages = $( '.messages' );
+
+            messages.append( '<div style="display: none;" class="line"><span class="time">' + dateString + '</span>: <pre style="display : inline;" class="content"></pre></div>' );
+
+            if(messages.length)
+                messages.scrollTop(messages[0].scrollHeight - messages.height());
         },
 
         handleMessage : function(data) {
@@ -111,6 +117,11 @@ $( function() {
             } else {
                 element.append( '<span><font color="red">' + data.msg + '</font></span>' );
             }
+
+            var messages = $( '.messages' );
+
+            if(messages.length)
+                messages.scrollTop(messages[0].scrollHeight - messages.height());
         },
 
         // Re-rendering the App just means refreshing the statistics -- the rest

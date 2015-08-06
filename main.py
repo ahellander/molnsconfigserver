@@ -28,13 +28,6 @@ def wrapStdoutStderr(func, stdout, stderr, args = (), kwargs = {}):
     sys.stdout = stdout
     sys.stderr = stderr
 
-    print 'wtf', kwargs
-
-    if 'config' in kwargs:
-        kwargs['config'] = molns.MOLNSConfig(db_file = kwargs['config'])
-
-    print args, kwargs
-
     try:
         func(*args, **kwargs)
     except Exception as e:
@@ -60,6 +53,17 @@ def testfunction(a, s, d, f):
     print s
     print d
     print f
+
+def startMolns(providerName, password, configFilename):
+    #print providerName, config
+    config = molns.MOLNSConfig(db_file = configFilename)
+    molns.MOLNSProvider.provider_initialize(providerName, config)
+    molns.MOLNSProvider.provider_get_config(provider_type = 'EC2', config = config)
+    molns.MOLNSController.start_controller(['goat'], config, password = password)
+
+def stopMolns(providerName, configFilename):
+    config = molns.MOLNSConfig(db_file = configFilename)
+    molns.MOLNSController.stop_controller(['goat'], config)
 
 #if __name__ == '__main__':
 if False:
@@ -194,11 +198,41 @@ class App(object):
     @cherrypy.expose
     @cherrypy.tools.json_out()
     @logexceptions
-    def startmolns(self, aws_access_key = None, aws_secret_key = None, head_node = None):
+    def stopmolns(self):
+        if 'process' in cherrypy.session and cherrypy.session['process'][0].is_alive():
+            return { 'status' : False, 'msg' : 'Currently running process' }
+
+        if 'aws_access_key' not in cherrypy.session:
+            cherrypy.session['aws_access_key'] = aws_access_key
+
+        if 'aws_secret_key' not in cherrypy.session:
+            cherrypy.session['aws_secret_key'] = aws_secret_key
+
+        if 'head_node' not in cherrypy.session:
+            cherrypy.session['head_node'] = head_node
+
+        providerName = 'mountain'
+
+        stdout = Logger(multiprocessing.Queue())
+        stderr = Logger(multiprocessing.Queue())
+        process = multiprocessing.Process(target = wrapStdoutStderr, args = (stopMolns, stdout, stderr, (providerName, "/home/bbales2/molnsconfigserver/test.db")))
+        process.start()
+
+        cherrypy.session['process'] = (process, stdout, stderr)
+
+        return { 'status' : True, 'msg' : 'MOLNs stop request made successfully' }
+
+    @cherrypy.expose
+    @cherrypy.tools.json_out()
+    @logexceptions
+    def startmolns(self, pw = None, aws_access_key = None, aws_secret_key = None, head_node = None):
         if 'process' in cherrypy.session and cherrypy.session['process'][0].is_alive():
             return { 'status' : False, 'msg' : 'Currently running process' }
         else:
             session = None
+
+        if pw == None:
+            return { 'status' : False, 'msg' : 'Password must be set' }
 
         if aws_access_key == None:
             return { 'status' : False, 'msg' : 'Access key must be set' }
@@ -219,29 +253,19 @@ class App(object):
             cherrypy.session['head_node'] = head_node
 
         config = molns.MOLNSConfig(db_file="/home/bbales2/molnsconfigserver/test.db")
+
         provider_conf_items = molns.MOLNSProvider.provider_get_config(provider_type = 'EC2', config = config)
 
         json_obj = { 'name' : 'mountain',
                      'type' : 'EC2',
                      'config' : {} }
 
+        providerName = json_obj['name']
+
         json_obj['config']['aws_access_key'] = aws_access_key
         json_obj['config']['aws_secret_key'] = aws_secret_key
 
         molns.MOLNSProvider.provider_import('', config, json_obj)
-
-        stdout = Logger(multiprocessing.Queue())
-        stderr = Logger(multiprocessing.Queue())
-        #process = multiprocessing.Process(target = wrapStdoutStderr, args = (testfunction, stdout, stderr, ('a', 'b', 'c', 'd')))
-        #process.join()
-        #molns.MOLNSProvider.provider_initialize('mountain', config)
-        process = multiprocessing.Process(target = wrapStdoutStderr, args = (molns.MOLNSProvider.provider_initialize, stdout, stderr, [json_obj['name']], { 'config' : "/home/bbales2/molnsconfigserver/test.db" }))
-        #process = multiprocessing.Process(target = molns.MOLNSProvider.provider_initialize, args = (json_obj['name'], config))
-        process.start()
-
-        cherrypy.session['process'] = (process, stdout, stderr)
-
-        molns.MOLNSProvider.provider_get_config(provider_type='EC2', config = config)
 
         controller_conf_items = molns.MOLNSController.controller_get_config(provider_type = 'EC2', config = config)
 
@@ -251,12 +275,18 @@ class App(object):
 
         molns.MOLNSController.controller_import('', config, json_obj)
 
-        
+        stdout = Logger(multiprocessing.Queue())
+        stderr = Logger(multiprocessing.Queue())
+        #process = multiprocessing.Process(target = wrapStdoutStderr, args = (testfunction, stdout, stderr, ('a', 'b', 'c', 'd')))
+        #process.join()
+        #molns.MOLNSProvider.provider_initialize('mountain', config)
+        process = multiprocessing.Process(target = wrapStdoutStderr, args = (startMolns, stdout, stderr, (providerName, pw, "/home/bbales2/molnsconfigserver/test.db")))
+        #process = multiprocessing.Process(target = molns.MOLNSProvider.provider_initialize, args = (json_obj['name'], config))
+        process.start()
 
-        #molns
-        #conf3 = molns.MOLNSWorkerGroup.worker_group_get_config(provider_type='Eucalyptus', config=config)
+        cherrypy.session['process'] = (process, stdout, stderr)
 
-        return { 'status' : True, 'msg' : 'MOLNs started successfully' }
+        return { 'status' : True, 'msg' : 'MOLNs start request sent successfully' }
 
 if __name__ == '__main__':
     cherrypy.quickstart(App(), '/', {
