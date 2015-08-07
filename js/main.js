@@ -14,21 +14,42 @@ $( function() {
         initialize : function() {
         },
 
-        pollStdout : _.once(function() {
+        pollSystemState : _.once(function() {
             var inner = _.bind(function() {
-                $.ajax( { url : '/readstdout',
+                $.ajax( { url : '/pollSystemState',
                           data : {},
                           success : _.bind(_.partial(function(inner, data) {
-                              for(var i = 0; i < data.length; i++)
+                              this.updateUI(data['molns']);
+
+                              if(typeof data['process']['name'] != 'string')
+                              {
+                                  $( '.processStatus' ).text( 'No process running' );
+
+                                  $( 'input, button' ).prop('disabled', false);
+                              }
+                              else if(data['process']['status'])
+                              {
+                                  $( '.processStatus' ).text( 'Function \'' + data['process']['name'] + '\' running' );
+
+                                  $( 'input, button' ).prop('disabled', true);
+                              }
+                              else
+                              {
+                                  $( '.processStatus' ).text( 'Function \'' + data['process']['name'] + '\' finished' )
+
+                                  $( 'input, button' ).prop('disabled', false);
+                              }
+
+                              for(var i = 0; i < data['messages'].length; i++)
                               {
                                   var msg = '';
                                   
-                                  for(var c in data[i].msg)
+                                  for(var c in data['messages'][i].msg)
                                   {
-                                      if(data[i].msg[c] == '\n')
+                                      if(data['messages'][i].msg[c] == '\n')
                                       {
                                           if(msg.length > 0)
-                                              this.handleMessage({ status : data[i].status, msg : msg });
+                                              this.handleMessage({ status : data['messages'][i].status, msg : msg });
 
                                           msg = ''
 
@@ -36,12 +57,12 @@ $( function() {
                                       }
                                       else
                                       {
-                                          msg += data[i].msg[c];
+                                          msg += data['messages'][i].msg[c];
                                       }
                                   }
                                   
                                   if(msg.length > 0)
-                                      this.handleMessage({ status : data[i].status, msg : msg });
+                                      this.handleMessage({ status : data['messages'][i].status, msg : msg });
                               }
                            
                               setTimeout(_.bind(inner, this), 1000);
@@ -56,17 +77,80 @@ $( function() {
             
             inner();
         }),
+
+        buildUI : function(state) {
+            var providerDiv = $( '.provider' );
+            var controllerDiv = $( '.controller' );
+
+            this.ui = {};
+
+            this.ui['provider'] = {};
+            this.ui['controller'] = {};
+
+            template = _.template( '<tr><td><%= question %></td><td><input value="<%= value %>"></td></tr>' );
+
+            for(var key in state['provider'])
+            {
+                var newElement = template( state['provider'][key] );
+
+                this.ui['provider'][key] = $( newElement ).appendTo( providerDiv ).find('input');
+            }
+
+            for(var key in state['controller'])
+            {
+                state['controller'][key]['question'] = "Node type";
+
+                var newElement = template( state['controller'][key] );
+
+                this.ui['controller'][key] = $( newElement ).appendTo( controllerDiv ).find('input');
+            }
+        },
+
+        updateUI : function(state) {
+            for(var key1 in {'provider' : 1, 'controller' : 1})
+            {
+                for(var key2 in state[key1])
+                {
+                    var element = this.ui[key1][key2];
+                    
+                    var newVal = state[key1][key2]['value'];
+                    
+                    if(element.val().trim() != newVal)
+                        element.val(newVal);
+                }
+            }
+        },
+
+        extractStateFromUI : function() {
+            state = { 'EC2' : {} };
+
+            for(var key1 in this.ui)
+            {
+                state['EC2'][key1] = [];
+
+                for(var key2 in this.ui[key1])
+                {
+                    var element = this.ui[key1][key2];
+
+                    state['EC2'][key1][key2] = {};
+                    
+                    state['EC2'][key1][key2]['value'] = element.val().trim();
+                }
+            }
+
+            return state;
+        },
                             
         startCluster : function() {
             $.post( '/startmolns',
                     {
-                        aws_access_key : $( 'input[name=aws_access_key]' ).val(),
-                        aws_secret_key : $( 'input[name=aws_secret_key]' ).val(),
-                        head_node : $( '.headNode' ).val(),
+                        state : JSON.stringify(this.extractStateFromUI()),
                         pw : $( 'input[name=password]' ).val()
                     },
                     _.bind(function(data) {
-                        this.createMessage(data);
+                        this.updateUI(data);
+
+                        this.createMessage({ status : 2, msg : 'Molns cluster start request sent succesfully' });
                     }, this),
                     "json"
                   );
@@ -76,7 +160,9 @@ $( function() {
             $.post( '/stopmolns',
                     {},
                     _.bind(function(data) {
-                        this.createMessage(data);
+                        this.updateUI(data);
+                        
+                        this.createMessage({ status : 2, msg : 'Molns cluster stop request sent successfully' });
                     }, this),
                     "json"
                   );
@@ -113,7 +199,14 @@ $( function() {
 
             if(data.status)
             {
-                element.append( '<span><font color="green">' + data.msg + '</font></span>' );
+                if(data.status == 2)
+                {
+                    element.append( '<span><font color="blue">' + data.msg + '</font></span>' );
+                }
+                else
+                {
+                    element.append( '<span><font color="green">' + data.msg + '</font></span>' );
+                }
             } else {
                 element.append( '<span><font color="red">' + data.msg + '</font></span>' );
             }
@@ -129,17 +222,15 @@ $( function() {
         render : function() {
             var data = JSON.parse($( '.jsonData' ).text());
 
-            this.$el.find( 'input[name=aws_access_key]' ).val(data['aws_access_key']);
-            this.$el.find( 'input[name=aws_secret_key]' ).val(data['aws_secret_key']);
-
-            this.$el.find( '.headNode>option[value="' + data['head_node'] + '"]' ).prop('selected', true);
-
             $( '.loading' ).hide();
+
+            this.buildUI(data['molns']['EC2']);
+            this.updateUI(data['molns']['EC2']);
 
             this.delegateEvents();
 
             this.createMessage();
-            this.pollStdout();
+            this.pollSystemState();
 
             this.$el.show();
         }
