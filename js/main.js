@@ -89,18 +89,18 @@ $( function() {
 
             template = _.template( '<tr><td><%= question %></td><td><input value="<%= value %>"></td></tr>' );
 
-            for(var key in state['provider'])
+            for(var key in state['EC2']['provider'])
             {
-                var newElement = template( state['provider'][key] );
+                var newElement = template( state['EC2']['provider'][key] );
 
                 this.ui['provider'][key] = $( newElement ).appendTo( providerDiv ).find('input');
             }
 
-            for(var key in state['controller'])
+            for(var key in state['EC2']['controller'])
             {
-                state['controller'][key]['question'] = "Node type";
+                state['EC2']['controller'][key]['question'] = "Node type";
 
-                var newElement = template( state['controller'][key] );
+                var newElement = template( state['EC2']['controller'][key] );
 
                 this.ui['controller'][key] = $( newElement ).appendTo( controllerDiv ).find('input');
             }
@@ -109,13 +109,13 @@ $( function() {
         updateUI : function(state) {
             for(var key1 in {'provider' : 1, 'controller' : 1})
             {
-                for(var key2 in state[key1])
+                for(var key2 in state['EC2'][key1])
                 {
                     var element = this.ui[key1][key2];
                     
-                    var newVal = state[key1][key2]['value'];
+                    var newVal = state['EC2'][key1][key2]['value'];
                     
-                    if(element.val().trim() != newVal)
+                    if(element.val().trim() != newVal && newVal != "********")
                         element.val(newVal);
                 }
             }
@@ -224,8 +224,8 @@ $( function() {
 
             $( '.loading' ).hide();
 
-            this.buildUI(data['molns']['EC2']);
-            this.updateUI(data['molns']['EC2']);
+            this.buildUI(data['molns']);
+            this.updateUI(data['molns']);
 
             this.delegateEvents();
 
