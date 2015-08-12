@@ -53,7 +53,7 @@ def startMolns(providerName, password, configFilename):
 
     config = molns.MOLNSConfig(db_file = configFilename)
     molns.MOLNSProvider.provider_initialize(providerName, config)
-    molns.MOLNSProvider.provider_get_config(provider_type = 'EC2', config = config)
+    molns.MOLNSProvider.provider_get_config(name = providerName, provider_type = 'EC2', config = config)
     molns.MOLNSController.start_controller(['goat'], config, password = password)
 
 def stopMolns(providerName, configFilename):
@@ -124,8 +124,8 @@ class App(object):
     def getMolnsState(self):
         config = molns.MOLNSConfig(db_file = "/home/bbales2/molnsconfigserver/test.db")
 
-        provider_conf_items = molns.MOLNSProvider.provider_get_config(provider_type = 'EC2', config = config)
-        controller_conf_items = molns.MOLNSController.controller_get_config(provider_type = 'EC2', config = config)
+        provider_conf_items = molns.MOLNSProvider.provider_get_config(name = 'mountain', provider_type = 'EC2', config = config)
+        controller_conf_items = molns.MOLNSController.controller_get_config(name = 'goat', provider_type = 'EC2', config = config)
 
         return { 'EC2' : { 'provider' : provider_conf_items,
                            'controller' : controller_conf_items } }
@@ -136,7 +136,7 @@ class App(object):
 
         config = molns.MOLNSConfig(db_file = "/home/bbales2/molnsconfigserver/test.db")
 
-        provider_conf_items = molns.MOLNSProvider.provider_get_config(provider_type = 'EC2', config = config)
+        provider_conf_items = molns.MOLNSProvider.provider_get_config(name = 'mountain', provider_type = 'EC2', config = config)
 
         json_obj = { 'name' : 'mountain',
                      'type' : 'EC2',
@@ -151,7 +151,7 @@ class App(object):
 
         molns.MOLNSProvider.provider_import('', config, json_obj)
 
-        controller_conf_items = molns.MOLNSController.controller_get_config(provider_type = 'EC2', config = config)
+        controller_conf_items = molns.MOLNSController.controller_get_config(name = 'goat', provider_type = 'EC2', config = config)
 
         controller = state['EC2']['controller']
 
