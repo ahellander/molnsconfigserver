@@ -122,7 +122,7 @@ class App(object):
         cherrypy.session['process'] = (process, stdout, stderr, func.__name__)
 
     def getMolnsState(self):
-        config = molns.MOLNSConfig(db_file = "/home/bbales2/molnsconfigserver/test.db")
+        config = molns.MOLNSConfig(db_file = os.path.join(appDir, "test.db"))
 
         provider_conf_items = molns.MOLNSProvider.provider_get_config(name = 'mountain', provider_type = 'EC2', config = config)
         controller_conf_items = molns.MOLNSController.controller_get_config(name = 'goat', provider_type = 'EC2', config = config)
@@ -134,7 +134,7 @@ class App(object):
         if 'process' in cherrypy.session and cherrypy.session['process'][0].is_alive():
             raise Exception( 'Currently running process, cannot update state while this is ongoing' )
 
-        config = molns.MOLNSConfig(db_file = "/home/bbales2/molnsconfigserver/test.db")
+        config = molns.MOLNSConfig(db_file = os.path.join(appDir, "test.db"))
 
         provider_conf_items = molns.MOLNSProvider.provider_get_config(name = 'mountain', provider_type = 'EC2', config = config)
 
@@ -174,7 +174,7 @@ class App(object):
 
         providerName = 'mountain'
 
-        self.runProcess(stopMolns, (providerName, "/home/bbales2/molnsconfigserver/test.db"))
+        self.runProcess(stopMolns, (providerName, os.path.join(appDir, "test.db")))
 
         return self.pollSystemState()
 
@@ -191,7 +191,7 @@ class App(object):
 
         providerName = 'mountain'
 
-        self.runProcess(startMolns, (providerName, pw, "/home/bbales2/molnsconfigserver/test.db"))
+        self.runProcess(startMolns, (providerName, pw, os.path.join(appDir, "test.db")))
 
         return self.pollSystemState()
 
