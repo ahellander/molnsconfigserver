@@ -19,24 +19,35 @@ $( function() {
                 $.ajax( { url : '/pollSystemState',
                           data : {},
                           success : _.bind(_.partial(function(inner, data) {
-                              this.updateUI(data['molns']);
+                              var processRunning = false;
 
                               if(typeof data['process']['name'] != 'string')
                               {
                                   $( '.processStatus' ).text( 'No process running' );
 
-                                  $( 'input, button' ).prop('disabled', false);
+                                  processRunning = false;
                               }
                               else if(data['process']['status'])
                               {
                                   $( '.processStatus' ).text( 'Function \'' + data['process']['name'] + '\' running' );
 
-                                  $( 'input, button' ).prop('disabled', true);
+                                  processRunning = true;
                               }
                               else
                               {
                                   $( '.processStatus' ).text( 'Function \'' + data['process']['name'] + '\' finished' )
 
+                                  processRunning = false;
+                              }
+
+                              if(processRunning)
+                              {
+                                  this.updateUI(data['molns']);
+
+                                  $( 'input, button' ).prop('disabled', true);
+                              }
+                              else
+                              {
                                   $( 'input, button' ).prop('disabled', false);
                               }
 
@@ -148,7 +159,7 @@ $( function() {
                         pw : $( 'input[name=password]' ).val()
                     },
                     _.bind(function(data) {
-                        this.updateUI(data);
+                        this.updateUI(data['molns']);
 
                         this.createMessage({ status : 2, msg : 'Molns cluster start request sent succesfully' });
                     }, this),
@@ -160,7 +171,7 @@ $( function() {
             $.post( '/stopmolns',
                     {},
                     _.bind(function(data) {
-                        this.updateUI(data);
+                        this.updateUI(data['molns']);
                         
                         this.createMessage({ status : 2, msg : 'Molns cluster stop request sent successfully' });
                     }, this),
