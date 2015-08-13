@@ -111,6 +111,8 @@ $( function() {
 
             for(var providerType in state)
             {
+                $( '.providerType' ).append( '<option value="' + providerType + '">' + providerType + '</option>' );
+
                 this.ui[providerType] = {};
 
                 this.ui[providerType]['provider'] = {};

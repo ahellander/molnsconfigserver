@@ -12,10 +12,10 @@ appDir = os.path.dirname(os.path.abspath(__file__))
 templateLoader = jinja2.FileSystemLoader(searchpath = "html")
 templateEnv = jinja2.Environment(loader = templateLoader)
 
-providerToNames = { 'EC2' : { 'providerName' : 'mountain',
-                              'controllerName' : 'goat' },
-                    'OpenStack' : { 'providerName' : 'hill',
-                                    'controllerName' : 'cat' } }
+providerToNames = {}
+for providerType in molns.VALID_PROVIDER_TYPES:
+    providerToNames[providerType] = { 'providerName' : '{0}_provider'.format(providerType),
+                                      'controllerName' : '{0}_controller'.format(providerType) }
 
 class Logger(object):
     def __init__(self, queue):
@@ -130,10 +130,13 @@ class App(object):
     def getMolnsState(self):
         config = molns.MOLNSConfig(db_file = os.path.join(appDir, "test.db"))
 
-        return { 'EC2' : { 'provider' : molns.MOLNSProvider.provider_get_config(name = providerToNames['EC2']['providerName'], provider_type = 'EC2', config = config),
-                           'controller' : molns.MOLNSController.controller_get_config(name = providerToNames['EC2']['controllerName'], provider_type = 'EC2', config = config) },
-                 'OpenStack' : { 'provider' : molns.MOLNSProvider.provider_get_config(name = providerToNames['OpenStack']['providerName'], provider_type = 'OpenStack', config = config),
-                                 'controller' : molns.MOLNSController.controller_get_config(name = providerToNames['OpenStack']['controllerName'], provider_type = 'OpenStack', config = config) } }
+        output = {}
+
+        for providerType in providerToNames:
+            output[providerType] = { 'provider' : molns.MOLNSProvider.provider_get_config(name = providerToNames[providerType]['providerName'], provider_type = providerType, config = config),
+                                     'controller' : molns.MOLNSController.controller_get_config(name = providerToNames[providerType]['controllerName'], provider_type = providerType, config = config) }
+
+        return output
 
     def updateMolnsState(self, state):
         if 'process' in cherrypy.session and cherrypy.session['process'][0].is_alive():
