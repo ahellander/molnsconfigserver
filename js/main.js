@@ -6,6 +6,7 @@ $( function() {
         events : {
             "click .startCluster" :  "startCluster",
             "click .stopCluster" : "stopCluster",
+            "click .addWorkers" :  "addWorkers",
             "change .providerType" : "changeProvider"
         },
 
@@ -20,12 +21,14 @@ $( function() {
             {
                 this.ui[providerType]['providerBase'].hide();
                 this.ui[providerType]['controllerBase'].hide();
+                this.ui[providerType]['workerBase'].hide();
             }
 
             var providerType = $( '.providerType' ).val();
 
             this.ui[providerType]['providerBase'].show();
             this.ui[providerType]['controllerBase'].show();
+            this.ui[providerType]['workerBase'].show();
         },
 
         pollSystemState : _.once(function() {
@@ -106,6 +109,7 @@ $( function() {
         buildUI : function(state) {
             var providerDiv = $( '.provider' );
             var controllerDiv = $( '.controller' );
+            var workerDiv = $( '.worker' );
 
             this.ui = {};
 
@@ -117,6 +121,7 @@ $( function() {
 
                 this.ui[providerType]['provider'] = {};
                 this.ui[providerType]['controller'] = {};
+                this.ui[providerType]['worker'] = {};
                 
                 var providerBase = $( '<tbody></tbody>' );
                 this.ui[providerType]['providerBase'] = providerBase;
@@ -125,6 +130,10 @@ $( function() {
                 var controllerBase = $( '<tbody></tbody>' );
                 this.ui[providerType]['controllerBase'] = controllerBase;
                 controllerDiv.after( controllerBase );
+                
+                var workerBase = $( '<tbody></tbody>' );
+                this.ui[providerType]['workerBase'] = workerBase;
+                workerDiv.after( workerBase );
 
                 template = _.template( '<tr><td><%= question %></td><td><input value="<%= value %>"></td></tr>' );
 
@@ -140,6 +149,13 @@ $( function() {
                     var newElement = template( state[providerType]['controller'][key] );
 
                     this.ui[providerType]['controller'][key] = $( newElement ).appendTo( controllerBase ).find('input');
+                }
+
+                for(var key in state[providerType]['worker'])
+                {
+                    var newElement = template( state[providerType]['worker'][key] );
+
+                    this.ui[providerType]['worker'][key] = $( newElement ).appendTo( workerBase ).find('input');
                 }
             }
         },
@@ -169,7 +185,7 @@ $( function() {
             {
                 state[providerType] = {};
 
-                for(var key1 in {'provider' : 1, 'controller' : 1})
+                for(var key1 in {'provider' : 1, 'controller' : 1, 'worker' : 1})
                 {
                     state[providerType][key1] = [];
                     
@@ -212,6 +228,21 @@ $( function() {
                         this.updateUI(data['molns']);
                         
                         this.createMessage({ status : 2, msg : 'Molns cluster stop request sent successfully' });
+                    }, this),
+                    "json"
+                  );
+        },
+        
+        addWorkers : function() {
+            $.post( '/addworkers',
+                    {
+                        number : $( 'input[name=number]' ).val(),
+                        providerType : $( '.providerType' ).val()
+                    },
+                    _.bind(function(data) {
+                        this.updateUI(data['molns']);
+
+                        this.createMessage({ status : 2, msg : 'Add worker request successfully sent to Molns cluster' });
                     }, this),
                     "json"
                   );

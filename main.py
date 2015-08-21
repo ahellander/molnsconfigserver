@@ -15,7 +15,8 @@ templateEnv = jinja2.Environment(loader = templateLoader)
 providerToNames = {}
 for providerType in molns.VALID_PROVIDER_TYPES:
     providerToNames[providerType] = { 'providerName' : '{0}_provider'.format(providerType),
-                                      'controllerName' : '{0}_controller'.format(providerType) }
+                                      'controllerName' : '{0}_controller'.format(providerType),
+                                      'workerName' : '{0}_worker'.format(providerType) }
 
 class Logger(object):
     def __init__(self, queue):
@@ -53,7 +54,7 @@ def logexceptions(func):
 
     return inner
 
-def startMolns(providerName, controllerName, providerType, password, configFilename):
+def startMolns(providerName, controllerName, workerName, providerType, password, configFilename):
     #print providerName, config
 
     config = molns.MOLNSConfig(db_file = configFilename)
@@ -61,11 +62,17 @@ def startMolns(providerName, controllerName, providerType, password, configFilen
     molns.MOLNSProvider.provider_initialize(providerName, config)
     molns.MOLNSProvider.provider_get_config(name = providerName, provider_type = providerType, config = config)
     molns.MOLNSController.start_controller([controllerName], config, password = password)
+    molns.MOLNSWorkerGroup.start_worker_groups([workerName], config)
 
 def stopMolns(controllerName, configFilename):
     config = molns.MOLNSConfig(db_file = configFilename)
 
     molns.MOLNSController.stop_controller([controllerName], config)
+
+def addWorkers(workerName, number, configFilename):
+    config = molns.MOLNSConfig(db_file = configFilename)
+
+    molns.MOLNSWorkerGroup.add_worker_groups([workerName, number], config)
 
 class App(object):
     @cherrypy.expose
@@ -134,7 +141,8 @@ class App(object):
 
         for providerType in providerToNames:
             output[providerType] = { 'provider' : molns.MOLNSProvider.provider_get_config(name = providerToNames[providerType]['providerName'], provider_type = providerType, config = config),
-                                     'controller' : molns.MOLNSController.controller_get_config(name = providerToNames[providerType]['controllerName'], provider_type = providerType, config = config) }
+                                     'controller' : molns.MOLNSController.controller_get_config(name = providerToNames[providerType]['controllerName'], provider_type = providerType, config = config),
+                                     'worker' : molns.MOLNSWorkerGroup.worker_group_get_config(name = providerToNames[providerType]['workerName'], provider_type = providerType, config = config) }
 
         return output
 
@@ -146,7 +154,8 @@ class App(object):
 
         for providerType in state:
             providerName = providerToNames[providerType]['providerName']
-            controllerName = providerToNames[providerType]['providerName']
+            controllerName = providerToNames[providerType]['controllerName']
+            workerName = providerToNames[providerType]['workerName']
 
             provider_conf_items = molns.MOLNSProvider.provider_get_config(name = providerName, provider_type = providerType, config = config)
 
@@ -177,6 +186,21 @@ class App(object):
 
             molns.MOLNSController.controller_import('', config, json_obj)
 
+            worker_conf_items = molns.MOLNSWorkerGroup.worker_group_get_config(name = workerName, provider_type = providerType, config = config)
+            
+            worker = state[providerType]['worker']
+            
+            json_obj = { 'name' : workerName,
+                         'controller_name' : controllerName,
+                         'provider_name' : providerName,
+                         'config' : {} }
+
+            for i in range(len(worker)):
+                if worker[i]['value'] != worker_conf_items[i]['value']:
+                    json_obj['config'][worker_conf_items[i]['key']] = worker[i]['value']
+
+            molns.MOLNSWorkerGroup.worker_group_import('', config, json_obj)
+
     @cherrypy.expose
     @cherrypy.tools.json_out()
     @logexceptions
@@ -184,7 +208,7 @@ class App(object):
         if 'process' in cherrypy.session and cherrypy.session['process'][0].is_alive():
             return { 'status' : False, 'msg' : 'Currently running process' }
 
-        if providerType not in ['EC2', 'OpenStack']:
+        if providerType not in molns.VALID_PROVIDER_TYPES:
             return { 'status' : False, 'msg' : 'Invalid provider type specified (shouldn\'t be possible)' }
 
         controllerName = providerToNames[providerType]['controllerName']
@@ -196,11 +220,27 @@ class App(object):
     @cherrypy.expose
     @cherrypy.tools.json_out()
     @logexceptions
+    def addworkers(self, providerType, number):
+        if 'process' in cherrypy.session and cherrypy.session['process'][0].is_alive():
+            return { 'status' : False, 'msg' : 'Currently running process' }
+
+        if providerType not in molns.VALID_PROVIDER_TYPES:
+            return { 'status' : False, 'msg' : 'Invalid provider type specified (shouldn\'t be possible)' }
+
+        workerName = providerToNames[providerType]['workerName']
+
+        self.runProcess(addWorkers, (workerName, number, os.path.join(appDir, "test.db")))
+
+        return self.pollSystemState()
+
+    @cherrypy.expose
+    @cherrypy.tools.json_out()
+    @logexceptions
     def startmolns(self, state = None, pw = None, providerType = None):
         if 'process' in cherrypy.session and cherrypy.session['process'][0].is_alive():
             return { 'status' : False, 'msg' : 'Currently running process' }
 
-        if providerType not in ['EC2', 'OpenStack']:
+        if providerType not in molns.VALID_PROVIDER_TYPES:
             return { 'status' : False, 'msg' : 'Invalid provider type specified (shouldn\'t be possible)' }
 
         state = json.loads(state)
@@ -209,8 +249,9 @@ class App(object):
 
         providerName = providerToNames[providerType]['providerName']
         controllerName = providerToNames[providerType]['controllerName']
+        workerName = providerToNames[providerType]['workerName']
 
-        self.runProcess(startMolns, (providerName, controllerName, providerType, pw, os.path.join(appDir, "test.db")))
+        self.runProcess(startMolns, (providerName, controllerName, workerName, providerType, pw, os.path.join(appDir, "test.db")))
 
         return self.pollSystemState()
 
