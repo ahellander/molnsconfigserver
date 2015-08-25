@@ -21,7 +21,21 @@
             <table>
                 <tr>
                     <th align="left">
-                        EC2 Configuration
+                        Provider Select
+                    </th>
+                </tr>
+                <tbody>
+                    <tr>
+                        <td>Provider type</td>
+                        <td>
+                            <select class="providerType">
+                            </select>
+                        </td>
+                    </tr>
+                </tbody>
+                <tr>
+                    <th align="left">
+                        Provider Configuration
                     </th>
                 </tr>
                 <tbody class="provider"></tbody>
@@ -33,12 +47,22 @@
                 <tbody class="controller"></tbody>
                 <tr>
                     <th align="left">
+                        Worker Configuration
+                    </th>
+                </tr>
+                <tbody class="worker"></tbody>
+                <tr>
+                    <th align="left">
                         MOLNs configuration
                     </th>
                 </tr>
                 <tbody>
                     <tr>
                         <td>Password</td><td><input type="text" name="password"></td>
+                    </tr>
+                    <tr>
+                        <td>Add temporary worker nodes</td><td><input type="text" name="number"><button class="addWorkers">Add Workers</button>
+</td>
                     </tr>
                 </tbody>
             </table>
